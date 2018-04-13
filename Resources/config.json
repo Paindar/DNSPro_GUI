@@ -1,0 +1,23 @@
+{
+	"regex":[
+	{
+		"server":"10.9.0.110",
+		"rule":[".*\\.suda\\.edu\\.cn"]
+	},
+	{
+		"server":"1.2.4.8",
+		"rule":[".*\\.pixiv\\.net"]
+	}
+	],
+	"region":[
+	{
+		"server":"1.2.4.8",
+		"ctry":["CN"]
+	},
+	{
+		"server":"8.8.8.8",
+		"ctry":["default"]
+	}
+	],
+	"default":"1.2.4.8"
+}
