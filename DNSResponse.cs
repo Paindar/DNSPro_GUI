@@ -19,66 +19,25 @@ namespace DNSPro_GUI
         public Answer(byte[] buf, int str)
         {
             int i = str;
-            if (buf[i] == 0xC0)
-            {
-                if(buf[i + 1] == 0xC)
-                { 
-                    similar = true;
-                    i += 2;
-                }
-                else
-                {
-                    StringBuilder sb = new StringBuilder();
-                    for (int j=buf[i+1]; j < buf.Length; j++)
-                    {
-                        if (buf[j] == 0)
-                            break;
-                        if (sb.Length != 0)
-                            sb.Append('.');
-                        for (int k = 0; k < buf[j]; k++)
-                        {
-                            sb.Append((char)buf[j+k]);
-                        }
-                    }
-                    name = sb.ToString();
-                    i+=2;
-                }
-            }
-            else
-            {
-                StringBuilder sb = new StringBuilder();
-                for (; i < buf.Length; i++)
-                {
-                    if (buf[i] == 0)
-                        break;
-                    if (sb.Length != 0)
-                        sb.Append('.');
-                    for (int j = 0; j < buf[i]; j++)
-                    {
-                        sb.Append((char)buf[i + 1 + j]);
-                    }
-
-                    i += buf[i];
-                }
-                name = sb.ToString();
-                i++;
-            }
-            type = buf[i] * 256 + buf[i + 1];
+            int len = GetStringFromBytes(buf, str, out string tmp);
+            name = tmp;
+            i += len + 1;
+            type = buf[i] * 256 + buf[i + 1];//2
             i += 2;
-            klass = buf[i] * 256 + buf[i + 1];
+            klass = buf[i] * 256 + buf[i + 1];//2
             i += 2;
-            ttl = (((buf[i] * 256 + buf[i + 1]) * 256) + buf[i + 2]) * 256 + buf[i + 3];
+            ttl = (((buf[i] * 256 + buf[i + 1]) * 256) + buf[i + 2]) * 256 + buf[i + 3];//4
             i += 4;
-            rdlength = buf[i] * 256 + buf[i + 1];
+            rdlength = buf[i] * 256 + buf[i + 1];//2
             i += 2;
-            if(type ==12)//ipaddress to hostname
+            if (type == 12)//ipaddress to hostname
             {
                 for (int j = 0; j < rdlength; j++)
                 {
                     rdata += (char)(buf[i + j]);
                 }
             }
-            else if(type==1)
+            else if (type == 1)
             {
                 rdata = "";
                 for (int j = 0; j < rdlength; j++)
@@ -88,18 +47,62 @@ namespace DNSPro_GUI
                     rdata += (int)(buf[i + j]);
                 }
             }
-            else if(type==28)
+            else if (type == 28)
             {
                 rdata = "";
-                for (int j = 0; j < rdlength; j+=4)
+                for (int j = 0; j < rdlength; j += 4)
                 {
                     if (rdata.Length != 0)
                         rdata += ':';
-                    rdata += (((buf[i]*256+buf[i+1])*256+buf[i+2])*256+buf[3]).ToString("X");
+                    rdata += (((buf[i] * 256 + buf[i + 1]) * 256 + buf[i + 2]) * 256 + buf[3]).ToString("X");
                 }
+            }
+            else if (type == 2)
+            {
+                len = GetStringFromBytes(buf, i, out tmp, rdlength);
+                rdata = tmp;
+            }
+            else
+            {
+                Console.WriteLine("Cannot analyse with type " + type);
             }
             i = i + rdlength;
             allSize = i - str;
+        }
+        public static int GetStringFromBytes(byte[] buf, int str, out string result, int maxLen = -1)
+        {
+            StringBuilder sb = new StringBuilder();
+            Stack<int> stack = new Stack<int>();
+            int len = (maxLen == -1 ? buf.Length - 1 : maxLen);
+            for (int j = str; j < (maxLen == -1 ? buf.Length : str + maxLen); j++)
+            {
+                if ((buf[j] & 0xC0) == 0xC0)//found ptr, jump to address
+                {
+                    stack.Push(j + 1);
+                    j = ((buf[j] * 256 + buf[j + 1]) & 16383) - 1;
+                }
+                else if (buf[j] != 0x00)// not ptr, common reading
+                {
+                    if (sb.Length != 0)
+                        sb.Append('.');
+                    for (int k = 0; k < buf[j]; k++)
+                    {
+                        sb.Append((char)buf[j + k + 1]);
+                    }
+                    j += buf[j];
+                }
+                else//found 0, end reading.
+                {
+                    while (stack.Count != 0)
+                    {
+                        j = stack.Pop();
+                    }
+                    len = j - str;
+                    break;
+                }
+            }
+            result = sb.ToString();
+            return len;
         }
     }
     class DNSResponse
@@ -115,41 +118,31 @@ namespace DNSPro_GUI
         public int qclass { get; set; }
         public List<Answer> answers = new List<Answer>();
 
-        public DNSResponse(byte[] pack)
+        public DNSResponse(byte[] buf)
         {
-            id = pack[0] * 256 + pack[1];
-            flag = new Flag(pack[2], pack[3]);
-            qdCount = pack[4] * 256 + pack[5];
-            anCount = pack[6] * 256 + pack[7];
-            nsCount = pack[8] * 256 + pack[9];
-            arCount = pack[10] * 256 + pack[11];
-            StringBuilder sb = new StringBuilder();
-            int i = 0;
-            for (i = 12; i < pack.Length; i++)
-            {
-                if (pack[i] == 0)
-                    break;
-                if (sb.Length != 0)
-                    sb.Append('.');
-                for (int j = 0; j < pack[i]; j++)
-                {
-                    sb.Append((char)pack[i + 1 + j]);
-                }
-
-                i += pack[i];
-
-            }
-            qname = sb.ToString();
-            i++;
-            qtype = pack[i] * 256 + pack[i + 1];
+            id = buf[0] * 256 + buf[1];
+            flag = new Flag(buf[2], buf[3]);
+            qdCount = buf[4] * 256 + buf[5];
+            anCount = buf[6] * 256 + buf[7];
+            nsCount = buf[8] * 256 + buf[9];
+            arCount = buf[10] * 256 + buf[11];
+            int len = Answer.GetStringFromBytes(buf, 12, out string tmp);
+            qname = tmp;
+            int i = 12 + len + 1;
+            qtype = buf[i] * 256 + buf[i + 1];
             i += 2;
-            qclass = pack[i] * 256 + pack[i + 1];
+            qclass = buf[i] * 256 + buf[i + 1];
             i += 2;
-            while(i<pack.Length)
+            while (i < buf.Length)
             {
-                Answer ans = new Answer(pack, i);
+                Answer ans = new Answer(buf, i);
                 answers.Add(ans);
-                i += ans.allSize;
+                if (ans.allSize > 0)
+                {
+                    i += ans.allSize;
+                }
+                else
+                    break;
             }
         }
         public void FillFromPequest(DNSRequest req)
