@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -21,8 +22,21 @@ namespace DNSPro_GUI
             try
             {
                 LogFilePath = "DnsPro.log";
-
-                _fs = new FileStream(LogFilePath, FileMode.Append);
+                if (File.Exists(LogFilePath))
+                {
+                    using (FileStream originalFileStream = new FileStream(LogFilePath, FileMode.Open))
+                    { 
+                          using (FileStream compressedFileStream = File.Create(DateTime.Now.ToString("yyyy-MM-dd HH_mm_ss") + ".gz"))
+                           {
+                                using (GZipStream compressionStream = new GZipStream(compressedFileStream,
+                                   CompressionMode.Compress))
+                                {
+                                    originalFileStream.CopyTo(compressionStream);
+                                }
+                            }
+                     }
+                }
+                _fs = new FileStream(LogFilePath, FileMode.Create);
                 _sw = new StreamWriterWithTimestamp(_fs);
                 _sw.AutoFlush = true;
                 Console.SetOut(_sw);
