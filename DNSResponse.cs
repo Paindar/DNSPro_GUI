@@ -62,6 +62,11 @@ namespace DNSPro_GUI
                 len = GetStringFromBytes(buf, i, out tmp, rdlength);
                 rdata = tmp;
             }
+            else if (type == 5)
+            {
+                len = GetStringFromBytes(buf, i, out tmp, rdlength);
+                rdata = tmp;
+            }
             else
             {
                 Console.WriteLine("Cannot analyse with type " + type);

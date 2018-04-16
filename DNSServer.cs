@@ -158,9 +158,9 @@ namespace DNSPro_GUI
             UdpClient mmClient = (UdpClient)state[0];
             IPEndPoint e = (IPEndPoint)state[1];
             byte[] buf = mmClient.EndReceive(ar, ref e1);
-            DNSResponse response = new DNSResponse(buf);
             try
             {
+                DNSResponse response = new DNSResponse(buf);
                 Logging.Info($"{response.qname} = {response.answers[0].rdata}");
             }
             catch (Exception ex)
