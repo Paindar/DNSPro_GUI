@@ -74,6 +74,7 @@ namespace DNSPro_GUI
                     try
                     {
                         UdpClient midManClient = new UdpClient();
+                        
                         IPEndPoint server = diversion.Request(req.qname);
                         Logging.Info("analyse: " + req.qname + $" from {server}");
                         midManClient.BeginSend(buf, buf.Length, server, new AsyncCallback((IAsyncResult ar)=>
@@ -110,7 +111,7 @@ namespace DNSPro_GUI
                 udpClient.Close();
             lock(udpClients)
             {
-                udpClients.ForEach(h => h.Close());
+                udpClients.ForEach(h => { h.Close(); });
             }
         }
         private void UdpReceiveCallback(IAsyncResult ar)
@@ -129,8 +130,7 @@ namespace DNSPro_GUI
             {
                 Logging.Error(ex.ToString()+" "+e.ToString());
             }
-            
-            udpClient.BeginReceive(new AsyncCallback(UdpReceiveCallback), null);
+            udpClient.BeginReceive(new AsyncCallback(UdpReceiveCallback), null);//keep main client listening
             if (buf == null)
                 return;
             DNSRequest req = new DNSRequest(buf);
@@ -160,7 +160,6 @@ namespace DNSPro_GUI
             UdpClient mmClient = (UdpClient)state[0];
             IPEndPoint e = (IPEndPoint)state[1];
             mmClient.EndSend(ar);
-            
             mmClient.BeginReceive(new AsyncCallback(UdpReceiveResultCallback), new object[] { mmClient, e });
         }
         private void UdpReceiveResultCallback(IAsyncResult ar)
