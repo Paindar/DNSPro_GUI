@@ -15,6 +15,8 @@ namespace DNSPro_GUI
         //TODO Close all sub-socket
         private Dictionary<string, byte[]> cache = new Dictionary<string, byte[]>();
         private DiversionSystem diversion;
+        private List<UdpClient> udpClients = new List<UdpClient>();
+        public int GetConnectCount() => udpClients.Count;
         public DNSServer()
         {
             diversion = new DiversionSystem();
@@ -33,6 +35,7 @@ namespace DNSPro_GUI
                 int IOC_VENDOR = 0x18000000;
                 int SIO_UDP_CONNRESET = (int)(IOC_IN | IOC_VENDOR | 12);
                 udpClient.Client.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+                
                 //Thread receiveThread = new Thread(ReceiveMessage);
                 //receiveThread.Start();
                 try
@@ -105,6 +108,10 @@ namespace DNSPro_GUI
                 tcpServer.Close();
             if (udpClient != null)
                 udpClient.Close();
+            lock(udpClients)
+            {
+                udpClients.ForEach(h => h.Close());
+            }
         }
         private void UdpReceiveCallback(IAsyncResult ar)
         {
@@ -113,22 +120,27 @@ namespace DNSPro_GUI
             try
             { 
                 buf = udpClient.EndReceive(ar, ref e);
-                
+            }
+            catch(ObjectDisposedException ex)
+            {
+                return;
             }
             catch(Exception ex)
             {
                 Logging.Error(ex.ToString()+" "+e.ToString());
             }
-            finally
-            {
-                udpClient.BeginReceive(new AsyncCallback(UdpReceiveCallback), null);
-            }
+            
+            udpClient.BeginReceive(new AsyncCallback(UdpReceiveCallback), null);
             if (buf == null)
                 return;
             DNSRequest req = new DNSRequest(buf);
             try
             {
                 UdpClient midManClient = new UdpClient();
+                lock (udpClients)
+                {
+                    udpClients.Add(midManClient);
+                }
                 IPEndPoint server = diversion.Request(req.qname);
                 midManClient.Connect(server);
                 Logging.Info("analyse: " + req.qname+$" from {server}");
@@ -158,9 +170,9 @@ namespace DNSPro_GUI
             UdpClient mmClient = (UdpClient)state[0];
             IPEndPoint e = (IPEndPoint)state[1];
             byte[] buf = mmClient.EndReceive(ar, ref e1);
-            DNSResponse response = new DNSResponse(buf);
             try
             {
+                DNSResponse response = new DNSResponse(buf);
                 Logging.Info($"{response.qname} = {response.answers[0].rdata}");
             }
             catch (Exception ex)
@@ -176,6 +188,10 @@ namespace DNSPro_GUI
             UdpClient client = (UdpClient)ar.AsyncState;
             udpClient.EndSend(ar);
             client.Close();
+            lock (udpClients)
+            {
+                udpClients.Remove(client);
+            }
         }
         //响应连接请求
         private void AcceptCallback(IAsyncResult ar)
