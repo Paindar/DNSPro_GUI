@@ -98,6 +98,7 @@ namespace DNSPro_GUI
                 case PowerModes.Suspend:
                     if (serverThread != null)
                     {
+                        server.Close();
                         serverThread.Abort();
                         Logging.Info("Stopped");
                     }

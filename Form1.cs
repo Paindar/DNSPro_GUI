@@ -25,17 +25,6 @@ namespace DNSPro_GUI
             InitializeComponent();
             timer.Tick += UpdateContent;
         }
-        public void CloseServer()
-        {
-        }
-        public void OnUpdate(string log)
-        {
-            lock(log_Object)
-            {
-                queue.Enqueue(log);
-            }
-        }
-
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {

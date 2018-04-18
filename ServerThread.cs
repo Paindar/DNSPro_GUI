@@ -11,12 +11,22 @@ namespace DNSPro_GUI
     class ServerThread
     {
         private Thread _thread;
+        private StartServerDelegate method;
+
         public ServerThread(StartServerDelegate method)
+        {
+            this.method = method;
+        }
+        public void Start()
         {
             _thread = new Thread(() => { method(); });
             _thread.IsBackground = true;
+            _thread.Start();
         }
-        public void Start() => _thread.Start();
-        public void Abort() => _thread.Abort();
+        public void Abort()
+        {
+
+            _thread.Abort();
+        }
     }
 }
