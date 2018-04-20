@@ -124,6 +124,7 @@ namespace DNSPro_GUI
             }
             catch(ObjectDisposedException ex)
             {
+                udpClient.BeginReceive(new AsyncCallback(UdpReceiveCallback), null);//keep main client listening
                 return;
             }
             catch(Exception ex)
@@ -159,8 +160,17 @@ namespace DNSPro_GUI
             object[] state = (object[])ar.AsyncState;
             UdpClient mmClient = (UdpClient)state[0];
             IPEndPoint e = (IPEndPoint)state[1];
-            mmClient.EndSend(ar);
-            mmClient.BeginReceive(new AsyncCallback(UdpReceiveResultCallback), new object[] { mmClient, e });
+            if (mmClient == null)
+                return;
+            try
+            {
+                mmClient.EndSend(ar);
+                mmClient.BeginReceive(new AsyncCallback(UdpReceiveResultCallback), new object[] { mmClient, e });
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
         }
         private void UdpReceiveResultCallback(IAsyncResult ar)
         {
@@ -168,7 +178,17 @@ namespace DNSPro_GUI
             object[] state = (object[])ar.AsyncState;
             UdpClient mmClient = (UdpClient)state[0];
             IPEndPoint e = (IPEndPoint)state[1];
-            byte[] buf = mmClient.EndReceive(ar, ref e1);
+            if (mmClient == null)
+                return;
+            byte[] buf;
+            try
+            {
+                buf = mmClient.EndReceive(ar, ref e1);
+            }
+            catch(ObjectDisposedException)
+            {
+                return;
+            }
             try
             {
                 DNSResponse response = new DNSResponse(buf);
