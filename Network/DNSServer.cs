@@ -192,7 +192,8 @@ namespace DNSPro_GUI
             try
             {
                 DNSResponse response = new DNSResponse(buf);
-                Logging.Info($"{response.qname} = {response.answers[0].rdata}");
+                if(response.answers.Count>0)
+                    Logging.Info($"{response.qname} = {response.answers[0].rdata}");
             }
             catch (Exception ex)
             {
