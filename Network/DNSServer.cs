@@ -124,7 +124,6 @@ namespace DNSPro_GUI
             }
             catch(ObjectDisposedException ex)
             {
-                udpClient.BeginReceive(new AsyncCallback(UdpReceiveCallback), null);//keep main client listening
                 return;
             }
             catch(Exception ex)
