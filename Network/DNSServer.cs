@@ -144,8 +144,22 @@ namespace DNSPro_GUI
                 IPEndPoint server = diversion.Request(req.qname);
                 midManClient.Connect(server);
                 Logging.Info("analyse: " + req.qname+$" from {server}");
+                Timer timer = new Timer((object obj) => 
+                    {
+                        try
+                        {
+                            midManClient.Close();
+
+                        }
+                        catch(ObjectDisposedException)
+                        {
+                            return;
+                        }
+                        Logging.Info($"connect to {server} close: time out.");
+                    }
+                , null, 10 * 1000, Timeout.Infinite);
                 midManClient.BeginSend(buf, buf.Length, new AsyncCallback(UdpSendCallback),
-                    new object[] { midManClient, e });
+                    new object[] { midManClient, e ,timer});
             }
             catch(Exception ex)
             {
@@ -159,6 +173,12 @@ namespace DNSPro_GUI
             object[] state = (object[])ar.AsyncState;
             UdpClient mmClient = (UdpClient)state[0];
             IPEndPoint e = (IPEndPoint)state[1];
+            Timer timer = (Timer)state[2];
+            if (timer != null)
+            {
+                
+                timer.Dispose();
+            }
             if (mmClient == null)
                 return;
             try
