@@ -10,15 +10,5 @@
       "rule": [ ".*\\.pixiv\\.net" ]
     }
 	],
-	"region":[
-	{
-		"server":"1.2.4.8",
-		"ctry":["CN"]
-	},
-	{
-		"server":"8.8.8.8",
-		"ctry":["default"]
-	}
-	],
 	"default":"1.2.4.8"
 }
