@@ -74,6 +74,7 @@ namespace DNSPro_GUI
                     try
                     {
                         UdpClient midManClient = new UdpClient();
+                        
                         IPEndPoint server = diversion.Request(req.qname);
                         Logging.Info("analyse: " + req.qname + $" from {server}");
                         midManClient.BeginSend(buf, buf.Length, server, new AsyncCallback((IAsyncResult ar)=>
@@ -110,7 +111,7 @@ namespace DNSPro_GUI
                 udpClient.Close();
             lock(udpClients)
             {
-                udpClients.ForEach(h => h.Close());
+                udpClients.ForEach(h => { h.Close(); });
             }
         }
         private void UdpReceiveCallback(IAsyncResult ar)
@@ -129,8 +130,7 @@ namespace DNSPro_GUI
             {
                 Logging.Error(ex.ToString()+" "+e.ToString());
             }
-            
-            udpClient.BeginReceive(new AsyncCallback(UdpReceiveCallback), null);
+            udpClient.BeginReceive(new AsyncCallback(UdpReceiveCallback), null);//keep main client listening
             if (buf == null)
                 return;
             DNSRequest req = new DNSRequest(buf);
@@ -144,8 +144,22 @@ namespace DNSPro_GUI
                 IPEndPoint server = diversion.Request(req.qname);
                 midManClient.Connect(server);
                 Logging.Info("analyse: " + req.qname+$" from {server}");
+                Timer timer = new Timer((object obj) => 
+                    {
+                        try
+                        {
+                            midManClient.Close();
+
+                        }
+                        catch(ObjectDisposedException)
+                        {
+                            return;
+                        }
+                        Logging.Info($"connect to {server} close: time out.");
+                    }
+                , null, 10 * 1000, Timeout.Infinite);
                 midManClient.BeginSend(buf, buf.Length, new AsyncCallback(UdpSendCallback),
-                    new object[] { midManClient, e });
+                    new object[] { midManClient, e ,timer});
             }
             catch(Exception ex)
             {
@@ -159,9 +173,23 @@ namespace DNSPro_GUI
             object[] state = (object[])ar.AsyncState;
             UdpClient mmClient = (UdpClient)state[0];
             IPEndPoint e = (IPEndPoint)state[1];
-            mmClient.EndSend(ar);
-            
-            mmClient.BeginReceive(new AsyncCallback(UdpReceiveResultCallback), new object[] { mmClient, e });
+            Timer timer = (Timer)state[2];
+            if (timer != null)
+            {
+                
+                timer.Dispose();
+            }
+            if (mmClient == null)
+                return;
+            try
+            {
+                mmClient.EndSend(ar);
+                mmClient.BeginReceive(new AsyncCallback(UdpReceiveResultCallback), new object[] { mmClient, e });
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
         }
         private void UdpReceiveResultCallback(IAsyncResult ar)
         {
@@ -169,11 +197,22 @@ namespace DNSPro_GUI
             object[] state = (object[])ar.AsyncState;
             UdpClient mmClient = (UdpClient)state[0];
             IPEndPoint e = (IPEndPoint)state[1];
-            byte[] buf = mmClient.EndReceive(ar, ref e1);
+            if (mmClient == null)
+                return;
+            byte[] buf;
+            try
+            {
+                buf = mmClient.EndReceive(ar, ref e1);
+            }
+            catch(ObjectDisposedException)
+            {
+                return;
+            }
             try
             {
                 DNSResponse response = new DNSResponse(buf);
-                Logging.Info($"{response.qname} = {response.answers[0].rdata}");
+                if(response.answers.Count>0)
+                    Logging.Info($"{response.qname} = {response.answers[0].rdata}");
             }
             catch (Exception ex)
             {

@@ -48,7 +48,16 @@ namespace DNSPro_GUI
             foreach (dynamic item in obj.regex)
             {
                 string server = item.server.ToString();
-                IPEndPoint ip = new IPEndPoint(IPAddress.Parse(server), 53);
+                int port = 53;
+                try
+                {
+                    port = item.port;
+                }
+                catch(System.Exception)
+                {
+                    ;
+                }
+                IPEndPoint ip = new IPEndPoint(IPAddress.Parse(server), port);
                 foreach(dynamic rule in item.rule)
                 {
                     rules.Add(new KeyValuePair<string, IPEndPoint>(rule.ToString(), ip));
