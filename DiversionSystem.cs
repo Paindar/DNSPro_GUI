@@ -45,10 +45,11 @@ namespace DNSPro_GUI
         public void ReadConf(string filePath)
         {
             dynamic obj = JsonConvert.DeserializeObject(File.ReadAllText(filePath));
+            int port = 20;
             foreach (dynamic item in obj.regex)
             {
                 string server = item.server.ToString();
-                int port = 53;
+                port = 53;
                 try
                 {
                     port = item.port;
@@ -72,7 +73,16 @@ namespace DNSPro_GUI
                     regions.Add(reg.ToString(), ip);
                 }
             }*/
-            defaultServer = new IPEndPoint(IPAddress.Parse(obj["default"].ToString()),53);
+            port = 53;
+            try
+            {
+                port = obj["port"];
+            }
+            catch (System.Exception)
+            {
+                ;
+            }
+            defaultServer = new IPEndPoint(IPAddress.Parse(obj["default"].ToString()),port);
         }
     }
 }
