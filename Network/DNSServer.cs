@@ -285,7 +285,7 @@ namespace DNSPro_GUI
                 }
                 else
                 {
-                    Console.WriteLine("Receive a Udp Request at Line 102:DNSServer.cs");
+                    Console.WriteLine("Receive a Udp Request.");
                     conn.Close();
                 }
             }
