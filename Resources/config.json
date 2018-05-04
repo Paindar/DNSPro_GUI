@@ -10,5 +10,6 @@
       "rule": [ ".*\\.pixiv\\.net" ]
     }
 	],
-	"default":"1.2.4.8"
+  "default": "1.2.4.8",
+  "port": 53
 }

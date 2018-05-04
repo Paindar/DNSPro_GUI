@@ -144,9 +144,9 @@ namespace DNSPro_GUI
                 IPEndPoint server = diversion.Request(req.qname);
                 midManClient.Connect(server);
                 Logging.Info("analyse: " + req.qname+$" from {server}");
-                Timer timer = new Timer((object obj) => 
-                    {
-                        try
+                Timer timer = new Timer((object obj) =>
+                {
+                    try
                         {
                             midManClient.Close();
 
@@ -154,10 +154,10 @@ namespace DNSPro_GUI
                         catch(ObjectDisposedException)
                         {
                             return;
-                        }
-                        Logging.Info($"connect to {server} close: time out.");
                     }
-                , null, 10 * 1000, Timeout.Infinite);
+                    Logging.Info($"connect to {server} close: time out.");
+                }
+                , null,10*1000, Timeout.Infinite);
                 midManClient.BeginSend(buf, buf.Length, new AsyncCallback(UdpSendCallback),
                     new object[] { midManClient, e ,timer});
             }
@@ -174,21 +174,20 @@ namespace DNSPro_GUI
             UdpClient mmClient = (UdpClient)state[0];
             IPEndPoint e = (IPEndPoint)state[1];
             Timer timer = (Timer)state[2];
-            if (timer != null)
-            {
-                
-                timer.Dispose();
-            }
             if (mmClient == null)
                 return;
             try
             {
                 mmClient.EndSend(ar);
-                mmClient.BeginReceive(new AsyncCallback(UdpReceiveResultCallback), new object[] { mmClient, e });
+                mmClient.BeginReceive(new AsyncCallback(UdpReceiveResultCallback), new object[] { mmClient, e, timer});
             }
             catch (ObjectDisposedException)
             {
                 return;
+            }
+            catch(SocketException ex)
+            {
+                Logging.Error(ex);
             }
         }
         private void UdpReceiveResultCallback(IAsyncResult ar)
@@ -197,6 +196,11 @@ namespace DNSPro_GUI
             object[] state = (object[])ar.AsyncState;
             UdpClient mmClient = (UdpClient)state[0];
             IPEndPoint e = (IPEndPoint)state[1];
+            Timer timer = (Timer)state[2];
+            if (timer != null)
+            {
+                timer.Dispose();
+            }
             if (mmClient == null)
                 return;
             byte[] buf;
@@ -285,7 +289,7 @@ namespace DNSPro_GUI
                 }
                 else
                 {
-                    Console.WriteLine("Receive a Udp Request at Line 102:DNSServer.cs");
+                    Console.WriteLine("Receive a Udp Request.");
                     conn.Close();
                 }
             }
