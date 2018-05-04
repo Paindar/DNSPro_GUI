@@ -185,6 +185,10 @@ namespace DNSPro_GUI
             {
                 return;
             }
+            catch(SocketException ex)
+            {
+                Logging.Error(ex);
+            }
         }
         private void UdpReceiveResultCallback(IAsyncResult ar)
         {
