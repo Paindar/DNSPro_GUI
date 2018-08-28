@@ -1,15 +1,16 @@
 {
-	"regex":[
-	{
-		"server":"10.9.0.110",
-		"rule":[".*\\.suda\\.edu\\.cn"]
-	},
+  "waiting": 3, 
+  "regex": [
+    {
+      "server": "10.9.0.110",
+      "rule": [ ".*\\.suda\\.edu\\.cn" ]
+    },
     {
       "port": 20,
       "server": "127.0.0.1",
       "rule": [ ".*\\.pixiv\\.net" ]
     }
-	],
+  ],
   "default": "1.2.4.8",
   "port": 53
 }

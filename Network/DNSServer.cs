@@ -16,6 +16,7 @@ namespace DNSPro_GUI
         private Dictionary<string, byte[]> cache = new Dictionary<string, byte[]>();
         private DiversionSystem diversion;
         private List<UdpClient> udpClients = new List<UdpClient>();
+        private int MaxWaitingTime = 3;
         public int GetConnectCount() => udpClients.Count;
         public DNSServer()
         {
@@ -157,7 +158,7 @@ namespace DNSPro_GUI
                     }
                     Logging.Info($"connect to {server} close: time out.");
                 }
-                , null,10*1000, Timeout.Infinite);
+                , null, MaxWaitingTime*1000, Timeout.Infinite);
                 midManClient.BeginSend(buf, buf.Length, new AsyncCallback(UdpSendCallback),
                     new object[] { midManClient, e ,timer});
             }
@@ -241,6 +242,7 @@ namespace DNSPro_GUI
         {
             Socket listener = (Socket)ar.AsyncState;
             Logging.Warn("Find a tcp connect.");
+            return;//TODO TCP check
             try
             {
                 Socket conn = listener.EndAccept(ar);

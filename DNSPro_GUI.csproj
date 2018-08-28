@@ -62,6 +62,7 @@
       <DependentUpon>LogForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Utils\IPUtils.cs" />
+    <Compile Include="Utils\JsonConfig.cs" />
     <Compile Include="Utils\Logging.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
