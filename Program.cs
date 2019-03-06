@@ -39,10 +39,11 @@ namespace DNSPro_GUI
                 Visible = false
             };
             toolBar = new ToolBarForm(form);
-
+            
             server = new DNSServer();
             serverThread = new ServerThread(() => { server.Start(); });
             serverThread.Start();
+            
             Application.Run();
         }
         private static int exited = 0;

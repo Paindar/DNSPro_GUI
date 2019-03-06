@@ -52,8 +52,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DiversionSystem.cs" />
-    <Compile Include="Network\DNSRequest.cs" />
-    <Compile Include="Network\DNSResponse.cs" />
     <Compile Include="Network\DNSServer.cs" />
     <Compile Include="LogForm.cs">
       <SubType>Form</SubType>
@@ -61,6 +59,12 @@
     <Compile Include="LogForm.Designer.cs">
       <DependentUpon>LogForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Network\Stages\IConnHandle.cs" />
+    <Compile Include="Network\Stages\UdpConn.cs" />
+    <Compile Include="Network\Stages\UdpConnEncryptedForwardStage.cs" />
+    <Compile Include="Network\Stages\UdpConnForwardRecv.cs" />
+    <Compile Include="Network\Stages\UdpConnForwardStage.cs" />
+    <Compile Include="Network\Stages\UdpConnStartStage.cs" />
     <Compile Include="Utils\IPUtils.cs" />
     <Compile Include="Utils\JsonConfig.cs" />
     <Compile Include="Utils\Logging.cs" />

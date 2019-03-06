@@ -9,6 +9,25 @@ namespace DNSPro_GUI
 {
     class DiversionSystem
     {
+        private static readonly object locker = new object();
+        public static DiversionSystem uniqueInstance;
+        public static DiversionSystem GetInstance()
+        {
+            lock (locker)
+            {
+                if (uniqueInstance == null)
+                {
+                    uniqueInstance = new DiversionSystem();
+                    if (!File.Exists("config.json"))
+                        File.WriteAllBytes("config.json", Resource.config);
+                    uniqueInstance.ReadConf("config.json");
+                }
+
+            }
+
+            return uniqueInstance;
+        }
+
         List<KeyValuePair<string, IPEndPoint>> rules = new List<KeyValuePair<string, IPEndPoint>>();
         Dictionary<string, IPEndPoint> regions = new Dictionary<string, IPEndPoint>();
         IPEndPoint defaultServer;
@@ -16,7 +35,7 @@ namespace DNSPro_GUI
 
         public IPEndPoint DefaultServer { get => defaultServer;  }
 
-        public DiversionSystem()
+        private DiversionSystem()
         {
             if(!File.Exists("regions.json"))
             {
@@ -24,12 +43,18 @@ namespace DNSPro_GUI
             }
             //ipRegion = new IPUtils("regions.json");
         }
-        public IPEndPoint Request(string addr)
+        /// <summary>
+        /// 根据规则返回
+        /// </summary>
+        /// <param name="addr"></param>
+        /// <returns></returns>
+        public IPEndPoint Request(string addr, out bool isEncrypted)
         {
             foreach(var i in rules)
             {
                 if(Regex.IsMatch(addr, i.Key))
                 {
+                    isEncrypted = (i.Value.Port != 53);
                     return i.Value;
                 }
             }
@@ -39,6 +64,7 @@ namespace DNSPro_GUI
             {
                 return regions[ctry];
             }*/
+            isEncrypted = false;
             return defaultServer;
         }
 

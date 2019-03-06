@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DNSPro_GUI.Network.Stages;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -14,16 +15,11 @@ namespace DNSPro_GUI
         private UdpClient udpClient;
         //TODO Close all sub-socket
         private Dictionary<string, byte[]> cache = new Dictionary<string, byte[]>();
-        private DiversionSystem diversion;
-        private List<UdpClient> udpClients = new List<UdpClient>();
-        private int MaxWaitingTime = 3;
-        public int GetConnectCount() => udpClients.Count;
+        private List<UdpConn> conns = new List<UdpConn>();
+        public int GetConnectCount() => conns.Count;
         public DNSServer()
         {
-            diversion = new DiversionSystem();
-            if (!File.Exists("config.json"))
-                File.WriteAllBytes("config.json", Resource.config);
-            diversion.ReadConf("config.json");
+
         }
         public bool Start(bool localOnly = true)
         {
@@ -61,58 +57,15 @@ namespace DNSPro_GUI
                 return false;
             }
         }
-        public void ReceiveMessage()
-        {
-            IPEndPoint remoteIpEndPoint = new IPEndPoint(IPAddress.Any, 0);
-            while (true)
-            {
-                try
-                {
-                    // 关闭receiveUdpClient时此时会产生异常
-                    IAsyncResult iar = udpClient.BeginReceive(null, null);
-                    byte[] buf = udpClient.EndReceive(iar, ref remoteIpEndPoint);
-                    DNSRequest req = new DNSRequest(buf);
-                    try
-                    {
-                        UdpClient midManClient = new UdpClient();
-                        
-                        IPEndPoint server = diversion.Request(req.qname);
-                        Logging.Info("analyse: " + req.qname + $" from {server}");
-                        midManClient.BeginSend(buf, buf.Length, server, new AsyncCallback((IAsyncResult ar)=>
-                        {
-                            object[] state = (object[])ar.AsyncState;
-                            UdpClient mmClient = (UdpClient)state[0];
-                            IPEndPoint e = (IPEndPoint)state[1];
-                            mmClient.EndSend(ar);
-                            mmClient.BeginReceive((IAsyncResult ar1)=> 
-                            {
-                                IPEndPoint e1 = new IPEndPoint(0, 0);
-                                byte[] buff = mmClient.EndReceive(ar1, ref e1);
-                                mmClient.Close();
-                                udpClient.BeginSend(buff, buff.Length, e, (IAsyncResult ar2) => { udpClient.EndSend(ar2); }, null);
-                            }, state);
-                        }),new object[] { midManClient, remoteIpEndPoint });
-                    }
-                    catch (Exception ex)
-                    {
-                        Logging.Error(ex.ToString());
-                    }
-                }
-                catch(Exception e)
-                {
-                    Logging.Error(e.ToString());
-                }
-            }
-        }
         public void Close()
         {
             if (tcpServer != null)
                 tcpServer.Close();
             if (udpClient != null)
                 udpClient.Close();
-            lock(udpClients)
+            lock(conns)
             {
-                udpClients.ForEach(h => { h.Close(); });
+                conns.ForEach(h => { h.Close(); });
             }
         }
         private void UdpReceiveCallback(IAsyncResult ar)
@@ -134,107 +87,14 @@ namespace DNSPro_GUI
             udpClient.BeginReceive(new AsyncCallback(UdpReceiveCallback), null);//keep main client listening
             if (buf == null)
                 return;
-            DNSRequest req = new DNSRequest(buf);
-            try
-            {
-                UdpClient midManClient = new UdpClient();
-                lock (udpClients)
-                {
-                    udpClients.Add(midManClient);
-                }
-                IPEndPoint server = diversion.Request(req.qname);
-                midManClient.Connect(server);
-                Logging.Info("analyse: " + req.qname+$" from {server}");
-                Timer timer = new Timer((object obj) =>
-                {
-                    try
-                        {
-                            midManClient.Close();
-
-                        }
-                        catch(ObjectDisposedException)
-                        {
-                            return;
-                    }
-                    Logging.Info($"connect to {server} close: time out.");
-                }
-                , null, MaxWaitingTime*1000, Timeout.Infinite);
-                midManClient.BeginSend(buf, buf.Length, new AsyncCallback(UdpSendCallback),
-                    new object[] { midManClient, e ,timer});
-            }
-            catch(Exception ex)
-            {
-                Logging.Error(ex.ToString());
-            }
             
-
-        }
-        private void UdpSendCallback(IAsyncResult ar)
-        {
-            object[] state = (object[])ar.AsyncState;
-            UdpClient mmClient = (UdpClient)state[0];
-            IPEndPoint e = (IPEndPoint)state[1];
-            Timer timer = (Timer)state[2];
-            if (mmClient == null)
-                return;
-            try
+            UdpConn conn = new UdpConn(udpClient, buf, e);
+            IConnHandle handle = new UdpConnStartStage(conn);
+            conn.Invoke(handle);
+            handle.Invoke(buf);
+            lock(conns)
             {
-                mmClient.EndSend(ar);
-                mmClient.BeginReceive(new AsyncCallback(UdpReceiveResultCallback), new object[] { mmClient, e, timer});
-            }
-            catch (ObjectDisposedException)
-            {
-                return;
-            }
-            catch(SocketException ex)
-            {
-                Logging.Error(ex);
-            }
-        }
-        private void UdpReceiveResultCallback(IAsyncResult ar)
-        {
-            IPEndPoint e1=new IPEndPoint(0,0);
-            object[] state = (object[])ar.AsyncState;
-            UdpClient mmClient = (UdpClient)state[0];
-            IPEndPoint e = (IPEndPoint)state[1];
-            Timer timer = (Timer)state[2];
-            if (timer != null)
-            {
-                timer.Dispose();
-            }
-            if (mmClient == null)
-                return;
-            byte[] buf;
-            try
-            {
-                buf = mmClient.EndReceive(ar, ref e1);
-            }
-            catch(ObjectDisposedException)
-            {
-                return;
-            }
-            try
-            {
-                DNSResponse response = new DNSResponse(buf);
-                if(response.answers.Count>0)
-                    Logging.Info($"{response.qname} = {response.answers[0].rdata}");
-            }
-            catch (Exception ex)
-            {
-                Logging.Error($"cannot analyse:  with Exception {ex}");
-            }
-            //TODO analyse pack and cache
-            udpClient.BeginSend(buf, buf.Length, e, UdpSendResultCallback, mmClient);
-            
-        }
-        private void UdpSendResultCallback(IAsyncResult ar)
-        {
-            UdpClient client = (UdpClient)ar.AsyncState;
-            udpClient.EndSend(ar);
-            client.Close();
-            lock (udpClients)
-            {
-                udpClients.Remove(client);
+                conns.Add(conn);
             }
         }
         //响应连接请求
@@ -281,7 +141,7 @@ namespace DNSPro_GUI
                     try
                     { 
                         Socket midManSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                        midManSocket.BeginConnect(diversion.DefaultServer, new AsyncCallback(ConnectCallback),
+                        midManSocket.BeginConnect(DiversionSystem.GetInstance().DefaultServer, new AsyncCallback(ConnectCallback),
                             new object[] { midManSocket, buf, conn });
                     }
                     catch (Exception e)

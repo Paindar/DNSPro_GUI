@@ -1,14 +1,9 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace DNSPro_GUI.Utils
+namespace DNSPro_GUI
 {
     class JsonConfig
     {
@@ -30,8 +25,13 @@ namespace DNSPro_GUI.Utils
                 {
                     curNode = cfg[p];
                 }
-                cfg[]
+                //todo
             }
+            catch(Exception e)
+            {
+                Logging.Info(e);
+            }
+            return defVal;
         }
     
     }
