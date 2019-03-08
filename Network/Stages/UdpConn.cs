@@ -37,7 +37,7 @@ namespace DNSPro_GUI.Network.Stages
 
         public void SendBack(byte[] bytes)
         {
-            client.BeginSend(bytes, bytes.Length, endPoint, (IAsyncResult ar) => { client.EndSend(ar); }, null);
+            client.BeginSend(bytes, bytes.Length, endPoint, (IAsyncResult ar) => { client.EndSend(ar); }, null);  
         }
 
 

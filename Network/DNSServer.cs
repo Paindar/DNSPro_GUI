@@ -71,6 +71,7 @@ namespace DNSPro_GUI
         private void UdpReceiveCallback(IAsyncResult ar)
         {
             IPEndPoint e = new IPEndPoint(0,0);
+            Logging.Info(string.Format("Start time: {0:MM/dd/yyy HH:mm:ss.fff}", DateTime.Now));
             byte[] buf=null;
             try
             { 
@@ -141,7 +142,7 @@ namespace DNSPro_GUI
                     try
                     { 
                         Socket midManSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                        midManSocket.BeginConnect(DiversionSystem.GetInstance().DefaultServer, new AsyncCallback(ConnectCallback),
+                        midManSocket.BeginConnect(DiversionSystem.GetInstance().DefaultServer.ToIPEndPoint(), new AsyncCallback(ConnectCallback),
                             new object[] { midManSocket, buf, conn });
                     }
                     catch (Exception e)

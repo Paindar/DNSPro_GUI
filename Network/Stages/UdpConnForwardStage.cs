@@ -46,8 +46,8 @@ namespace DNSPro_GUI.Network.Stages
             try
             {
                 bool isEncrypted = false;
-                IPEndPoint serverAddress = DiversionSystem.GetInstance().Request(hostName, out isEncrypted);
-                Logging.Info("analyse: " + hostName + $" forward to {serverAddress}, enc: {isEncrypted}");
+                DiversionSystem.RemotePoint serverAddress = DiversionSystem.GetInstance().Request(hostName, out isEncrypted);
+                Logging.Info("analyse: " + hostName + $" forward to {serverAddress.addr}, enc: {isEncrypted}");
                 if(isEncrypted)
                 {
                     IConnHandle handle = new UdpConnEncryptedForwardStage(conn, serverAddress, header);
@@ -56,7 +56,13 @@ namespace DNSPro_GUI.Network.Stages
                 }
                 else
                 {
-                    IConnHandle handle = new UdpConnForwardRecv(conn, serverAddress, header);
+                    IPEndPoint point = serverAddress.ToIPEndPoint();
+                    if(point.Address==IPAddress.None)
+                    {
+                        Logging.Warn("Cannot reach host " + serverAddress.addr);
+                        return;
+                    }
+                    IConnHandle handle = new UdpConnForwardRecv(conn, point, header);
                     base.conn.Invoke(handle);
                     handle.Invoke(bytes);
                 }
